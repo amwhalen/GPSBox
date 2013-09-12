@@ -1,0 +1,19 @@
+#######################################
+# Syntax Coloring Map For GPSBox
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+GPSBox	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+run	KEYWORD2
+setServoUnlockedPosition	KEYWORD2
+setServoLockedPosition	KEYWORD2
+servoLock	KEYWORD2
+servoUnlock	KEYWORD2
