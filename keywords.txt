@@ -13,7 +13,20 @@ GPSBox	KEYWORD1
 #######################################
 
 run	KEYWORD2
+setGpsTxPin	KEYWORD2
+setServoPin	KEYWORD2
+setButtonPin	KEYWORD2
+setLcdRsPin	KEYWORD2
+setLcdEnablePin	KEYWORD2
+setLcdD4Pin	KEYWORD2
+setLcdD5Pin	KEYWORD2
+setLcdD6Pin	KEYWORD2
+setLcdD7Pin	KEYWORD2
+setPowerPin	KEYWORD2
 setServoUnlockedPosition	KEYWORD2
 setServoLockedPosition	KEYWORD2
-servoLock	KEYWORD2
-servoUnlock	KEYWORD2
+setMaxAttempts	KEYWORD2
+setTargetLatitude	KEYWORD2
+setTargetLongitude	KEYWORD2
+setTargetDistance	KEYWORD2
+debug	KEYWORD2

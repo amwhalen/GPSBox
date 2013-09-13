@@ -18,6 +18,7 @@
  * LCD D5
  * LCD D6
  * LCD D7
+ * Pololu Power Switch
  */
 GPSBox::GPSBox()
  : _gpsTxPin(6)
@@ -29,6 +30,7 @@ GPSBox::GPSBox()
  , _lcdD5Pin(4)
  , _lcdD6Pin(3)
  , _lcdD7Pin(2)
+ , _powerPin(7)
  , _ss(255, _gpsTxPin)
  , _lcd(_lcdRSPin, _lcdEnablePin, _lcdD4Pin, _lcdD5Pin, _lcdD6Pin, _lcdD7Pin)
  , _targetLatitude(0)
@@ -37,6 +39,7 @@ GPSBox::GPSBox()
  , _maxAttempts(50)
  , _servoUnlockedPosition(20)
  , _servoLockedPosition(160)
+ , _debug(false)
 {
 
     // software serial input from GPS
@@ -51,8 +54,11 @@ GPSBox::GPSBox()
     // LCD
     _lcd.begin(16, 2);
 
-    // test
-    Serial.begin(9600);
+    // pololu power switch
+    pinMode(_powerPin, OUTPUT);
+
+    // seed random generator
+    randomSeed(analogRead(0));
 
 }
 
@@ -98,6 +104,11 @@ uint8_t GPSBox::setLcdD6Pin(uint8_t f) {
 
 uint8_t GPSBox::setLcdD7Pin(uint8_t f) {
     _lcdD7Pin = f;
+    return f;
+}
+
+uint8_t GPSBox::setPowerPin(uint8_t f) {
+    _powerPin = f;
     return f;
 }
 
@@ -153,6 +164,16 @@ uint8_t GPSBox::setServoLockedPosition(uint8_t pos) {
 uint8_t GPSBox::setMaxAttempts(uint8_t a) {
     _maxAttempts = a;
     return a;
+}
+
+/**
+ * Turns on debug mode, printing to Serial at 9600bps.
+ *
+ * @return void
+ */
+void GPSBox::debug() {
+    _debug = true;
+    Serial.begin(9600);
 }
 
 /**
@@ -289,11 +310,14 @@ void GPSBox::backdoor() {
     delay(10000);
     
     // display "garbage" characters to simulate an error
-    displayMessage("Garbage", "Characters");
-
-    // delay 2 minutes
-    //delay(120000);
-    delay(10000);
+    //displayMessage("Garbage", "Characters");
+    unsigned long garbageTimeout;
+    if (isDebugging()) {
+        garbageTimeout = 10000;
+    } else {
+        garbageTimeout = 120000;
+    }
+    displayGarbage(garbageTimeout);  
     
     // count down to open
     for (uint8_t i = 5; i > 0; i--) {
@@ -338,7 +362,7 @@ void GPSBox::reset() {
     setUnsolved();
 
     // display "Locked"
-    displayMessage("LOCKED", "Let the game begin.");
+    displayMessage("LOCKED", "Game reset");
 
 }
 
@@ -382,6 +406,15 @@ void GPSBox::servoLock() {
 void GPSBox::servoUnlock() {
     _servo.write(_servoUnlockedPosition);
     delay(500);
+}
+
+/**
+ * Turn the power to the Pololu device off
+ *
+ * @return void
+ */
+void GPSBox::powerOff() {
+    digitalWrite(_powerPin, HIGH);
 }
 
 /**
@@ -441,22 +474,73 @@ uint8_t GPSBox::getMaxAttempts() {
 }
 
 /**
+ * Returns true if debug mode is on.
+ * 
+ * @return bool True if debug mode is on, false otherwise.
+ */
+bool GPSBox::isDebugging() {
+    return _debug;
+}
+
+/**
  * Displays a message on the 16x2 LCD.
  * 
  * @param String line1 The string to display on line 1.
  * @param String line2 The string to display on line 2.
  */
 void GPSBox::displayMessage(String line1, String line2) {
-    /*
+    
+    if (isDebugging()) {
+        Serial.println("================");
+        Serial.println(line1);
+        Serial.println(line2);
+        Serial.println("================");
+        Serial.println();
+    }
+
     _lcd.setCursor(0, 0);
     _lcd.print(line1);
     _lcd.setCursor(0, 1);
     _lcd.print(line2);
-    */
 
-    Serial.println("================");
-    Serial.println(line1);
-    Serial.println(line2);
-    Serial.println("================");
-    Serial.println();
 }
+
+/**
+ * Displays garbage on the LCD for the given milliseconds
+ * @param timeout [description]
+ */
+void GPSBox::displayGarbage(unsigned long timeout) {
+
+    // special characters
+    // http://www.stanford.edu/class/ee281/handouts/lcd_tutorial.pdf
+
+    int x, y, index;
+    char garbageCharacters[] = {0xA6, 0xFF, 0xD0, 0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF, 0xB1, 0xB2, 0xB3, 0xB5, 0xB6, 0xB7, 0xB8};
+    char garbage;
+
+    unsigned long startTime = millis();
+    while (millis() - startTime < timeout) {
+        if (isDebugging()) {
+            Serial.println("================");
+        }
+        for (y = 0; y < 2; y++) {
+            for (x = 0; x < 16; x++) {
+                index = random(sizeof(garbageCharacters));
+                _lcd.setCursor(x, y);
+                _lcd.write(garbageCharacters[index]);
+                if (isDebugging()) {
+                    Serial.print(garbageCharacters[index]);
+                }
+            }
+            if (isDebugging()) {
+                Serial.println();
+            }
+        }
+        if (isDebugging()) {
+            Serial.println("================");
+            Serial.println();
+        }
+        delay(500 + random(1000));
+    }
+}
+

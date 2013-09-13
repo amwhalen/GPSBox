@@ -27,12 +27,14 @@ class GPSBox {
         uint8_t setLcdD5Pin(uint8_t);
         uint8_t setLcdD6Pin(uint8_t);
         uint8_t setLcdD7Pin(uint8_t);
+        uint8_t setPowerPin(uint8_t);
         uint8_t setServoUnlockedPosition(uint8_t);
         uint8_t setServoLockedPosition(uint8_t);
         uint8_t setMaxAttempts(uint8_t);
         float setTargetLatitude(float);
         float setTargetLongitude(float);
         uint16_t setTargetDistance(uint16_t);
+        void debug();
 
     private:
         Servo _servo;
@@ -48,13 +50,16 @@ class GPSBox {
         uint8_t _lcdD5Pin;
         uint8_t _lcdD6Pin;
         uint8_t _lcdD7Pin;
+        uint8_t _powerPin;
         uint8_t _servoUnlockedPosition;
         uint8_t _servoLockedPosition;
         uint8_t _maxAttempts;
         float _targetLatitude;
         float _targetLongitude;
         uint16_t _targetDistance;
+        bool _debug;
         void displayMessage(String, String);
+        void displayGarbage(unsigned long);
         bool waitForGPSSignal(unsigned long);
         void servoLock();
         void servoUnlock();
@@ -67,6 +72,8 @@ class GPSBox {
         void win();
         void backdoor();
         void reset();
+        void powerOff();
+        bool isDebugging();
 };
 
 #endif
