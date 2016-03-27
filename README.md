@@ -51,9 +51,9 @@ Example Usage
     #include "EEPROM.h"
 
     void setup() {
-      
+
       GPSBox g;
-      
+
       // hardware pins
       g.setGpsTxPin(6);
       g.setServoPin(8);
@@ -64,12 +64,12 @@ Example Usage
       g.setLcdD5Pin(4);
       g.setLcdD6Pin(3);
       g.setLcdD7Pin(2);
-      
+
       // game parameters
       g.setTargetLatitude(42.388427);
       g.setTargetLongitude(-72.526645);
       g.setTargetDistance(500); // meters
-      
+
       g.run();
 
     }
@@ -124,7 +124,7 @@ License
 GPSBox is released under the terms of the [MIT License](http://www.opensource.org/licenses/mit-license.html).
 
 The MIT License (MIT)
-Copyright (c) 2013 Andrew M. Whalen
+Copyright (c) 2016 Andrew M. Whalen
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 

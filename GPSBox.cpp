@@ -7,7 +7,7 @@
 
 /**
  * Constructor
- * 
+ *
  * Required Digital Pins:
  * GPS TX
  * Servo
@@ -31,7 +31,7 @@ GPSBox::GPSBox()
  , _lcdD6Pin(3)
  , _lcdD7Pin(2)
  , _powerPin(7)
- , _ss(255, _gpsTxPin)
+ , _ss(_gpsTxPin, 255)
  , _lcd(_lcdRSPin, _lcdEnablePin, _lcdD4Pin, _lcdD5Pin, _lcdD6Pin, _lcdD7Pin)
  , _targetLatitude(0)
  , _targetLongitude(0)
@@ -124,7 +124,7 @@ float GPSBox::setTargetLongitude(float l) {
 
 /**
  * Sets the distance in meters (radius) from the target location which will trigger the game to be solved.
- * 
+ *
  * @param uint16_t d The distance in meters. Must be in the 0-65535 range.
  * @return uint16_t The new distance.
  */
@@ -157,7 +157,7 @@ uint8_t GPSBox::setServoLockedPosition(uint8_t pos) {
 
 /**
  * Sets the maximum number of attempts allowed. Must be in the 0-255 range.
- * 
+ *
  * @param  uint8_t a The number of attempts.
  * @return uint8_t The current number of attempts.
  */
@@ -178,11 +178,11 @@ void GPSBox::debug() {
 
 /**
  * Runs the GPS Box game. Call this after setting all the correct pins and game parameters.
- * 
+ *
  * @return void
  */
 void GPSBox::run() {
-    
+
     // Power is turned on (the button was pressed and pololu turned the power on, or power was applied to the external barrel jack)
 
     if (isSolved()) {
@@ -210,41 +210,55 @@ void GPSBox::run() {
 
             // turn on GPS and search for signal
             displayMessage("Searching...", "");
-            bool foundSignal = waitForGPSSignal(60000);
+            bool foundSignal = waitForGPSData(60000);
             if (foundSignal) {
-                
+
                 // calculate the distance from the current location to the target location
                 float flat, flng;
                 unsigned long age;
                 _gps.f_get_position(&flat, &flng, &age);
-                float distance = _gps.distance_between(flat, flng, _targetLatitude, _targetLongitude);
+                //float distance = _gps.distance_between(flat, flng, _targetLatitude, _targetLongitude);
+                float distanceMiles = milesAway(flat, flng, _targetLatitude, _targetLongitude);
+                uint16_t distanceFeet = (uint16_t) distanceMiles * 5280;
+
+                if (isDebugging()) {
+                    Serial.println();
+                    String sMiles = String(distanceMiles);
+                    Serial.println("miles:");
+                    Serial.println(sMiles);
+                    Serial.println("feet:");
+                    Serial.println(distanceFeet);
+                    Serial.println();
+                }
 
                 // If the target location is within the minimum distance:
-                if (distance <= _targetDistance) {
-                    
+                if (distanceFeet <= _targetDistance) {
+
                     win();
 
                 } else {
-                    
+
                     // ACCESS DENIED
-                    displayMessage("Access Denied!", "");
-                    delay(3000);
 
                     // give distance to target
-                    int distanceInWholeMeters = (int) distance;
-                    String distanceString = String(distanceInWholeMeters);
-                    displayMessage("Distance: ", distanceString + " meters");
-                    delay(10000);
+                    String distanceString;
+                    if (distanceMiles > 1) {
+                        distanceString = String(distanceMiles) + " miles";
+                    } else {
+                        distanceString = String(distanceFeet) + " feet";
+                    }
+                    displayMessage("Access Denied!", distanceString);
+                    delay(15000);
 
                 }
 
             } else {
-                displayMessage("No GPS Signal", "");
+                displayMessage("No Signal", "Take Outside");
                 delay(10000);
-            }                
-                
+            }
+
         } else {
-            
+
             // no attempts remain!!
             for (uint8_t i = 0; i < 3; i++) {
                 displayMessage("Game Over", "Locked Forever");
@@ -255,7 +269,7 @@ void GPSBox::run() {
 
         }
 
-    }        
+    }
 
     // SHUTDOWN:
     for (uint8_t i = 5; i > 0; i--) {
@@ -263,7 +277,9 @@ void GPSBox::run() {
         displayMessage("Powering off in:", secondString+"...");
         delay(1000);
     }
-    // TODO: turn off power by sending a HIGH signal to the pololu switch
+
+    // Turn off power by sending a HIGH signal to the pololu switch
+    powerOff();
 
     /**
      * DEVELOPER ACCESS
@@ -294,7 +310,7 @@ void GPSBox::run() {
  * @return void
  */
 void GPSBox::win() {
-    displayMessage("Congratulations!", "");
+    displayMessage("Congratulations!", "Unlocking...");
     setSolved();
     delay(5000);
 }
@@ -308,7 +324,7 @@ void GPSBox::backdoor() {
 
     displayMessage("Excess voltage!", "Remove Power!");
     delay(10000);
-    
+
     // display "garbage" characters to simulate an error
     //displayMessage("Garbage", "Characters");
     unsigned long garbageTimeout;
@@ -317,8 +333,8 @@ void GPSBox::backdoor() {
     } else {
         garbageTimeout = 120000;
     }
-    displayGarbage(garbageTimeout);  
-    
+    displayGarbage(garbageTimeout);
+
     // count down to open
     for (uint8_t i = 5; i > 0; i--) {
         String openInString = String(i);
@@ -351,13 +367,13 @@ void GPSBox::reset() {
     // LOCK:
     // set the servo to the LOCKED position
     servoLock();
-    
+
     // set ATTEMPTS_REMAINING to maximum amount in EEPROM
     String attemptString = String(getMaxAttempts());
     displayMessage("Max Attempts", attemptString);
     setAttemptsRemaining(getMaxAttempts());
-    delay(5000);
-    
+    delay(1000);
+
     // set SOLVED to 0 in EEPROM
     setUnsolved();
 
@@ -368,10 +384,11 @@ void GPSBox::reset() {
 
 /**
  * Waits for the GPS to get a valid signal.
- * 
+ *
  * @param  int timeout The number of milliseconds to wait and try to get a signal.
  * @return bool Returns true if a valid signal was found within the timeout, false if not.
  */
+/*
 bool GPSBox::waitForGPSSignal(unsigned long timeout) {
     // timeout in milliseconds
     unsigned long startTime = millis();
@@ -383,6 +400,38 @@ bool GPSBox::waitForGPSSignal(unsigned long timeout) {
                 return true;
             }
             // update display with a progress bar based on timeout?
+        }
+    }
+    return false;
+}
+*/
+bool GPSBox::waitForGPSData(unsigned long timeout) {
+    bool foundAnyData = false;
+    unsigned long realStartMillis = millis();
+    if (!foundAnyData && (millis() - realStartMillis) > timeout) {
+      // No signal, try taking it outside.
+      return false;
+    } else {
+      bool newdata = false;
+      unsigned long start = millis();
+      // Try every 5 seconds
+      while (millis() - start < 5000) {
+          if (feedGPS()) {
+              return true;
+          }
+      }
+    }
+}
+
+/**
+ * Feed GPS data as it become available.
+ *
+ * @return bool True if data was received.
+ */
+bool GPSBox::feedGPS() {
+    while (_ss.available()) {
+        if (_gps.encode(_ss.read())) {
+            return true;
         }
     }
     return false;
@@ -419,7 +468,7 @@ void GPSBox::powerOff() {
 
 /**
  * Returns if the game has been solved.
- * 
+ *
  * @return bool Returns true if the game has been solved, false otherwise.
  */
 bool GPSBox::isSolved() {
@@ -428,7 +477,7 @@ bool GPSBox::isSolved() {
 
 /**
  * Returns the number of attempts remaining to solve the game.
- * 
+ *
  * @return uint8_t Number of attempts remaining.
  */
 uint8_t GPSBox::getAttemptsRemaining() {
@@ -437,7 +486,7 @@ uint8_t GPSBox::getAttemptsRemaining() {
 
 /**
  * Sets the number of attempts remaining.
- * 
+ *
  * @param uint8_t a The new number of attempts remaining.
  * @return uint8_t The current number of attempts remaining.
  */
@@ -448,7 +497,7 @@ uint8_t GPSBox::setAttemptsRemaining(uint8_t a) {
 
 /**
  * Sets the game as solved.
- * 
+ *
  * @return void
  */
 void GPSBox::setSolved() {
@@ -457,7 +506,7 @@ void GPSBox::setSolved() {
 
 /**
  * Sets the game as unsolved.
- * 
+ *
  * @return void
  */
 void GPSBox::setUnsolved() {
@@ -466,7 +515,7 @@ void GPSBox::setUnsolved() {
 
 /**
  * Returns the maximum number of attempts to solve the game.
- * 
+ *
  * @return uint8_t The maximum number of attempts.
  */
 uint8_t GPSBox::getMaxAttempts() {
@@ -475,7 +524,7 @@ uint8_t GPSBox::getMaxAttempts() {
 
 /**
  * Returns true if debug mode is on.
- * 
+ *
  * @return bool True if debug mode is on, false otherwise.
  */
 bool GPSBox::isDebugging() {
@@ -483,13 +532,41 @@ bool GPSBox::isDebugging() {
 }
 
 /**
+ * Returns the distance in miles between two latitude/longitude locations.
+ *
+ * @param  lat
+ * @param  lon
+ * @param  targetLat
+ * @param  targetLon
+ * @return           float The distance in miles.
+ */
+float GPSBox::milesAway(float lat, float lon, float targetLat, float targetLon) {
+    float distance = _gps.distance_between(lat, lon, targetLat, targetLon);
+    float miles = distance * 0.00062137;
+    if (isDebugging()) {
+        // dtostrf(FLOAT,WIDTH,PRECSISION,BUFFER);
+        char metersChar[15];
+        char milesChar[15];
+        dtostrf(distance, 10, 2, metersChar);
+        dtostrf(miles, 10, 2, milesChar);
+        Serial.println();
+        Serial.println("meters:");
+        Serial.println(metersChar);
+        Serial.println("miles:");
+        Serial.println(milesChar);
+        Serial.println();
+    }
+    return miles;
+}
+
+/**
  * Displays a message on the 16x2 LCD.
- * 
+ *
  * @param String line1 The string to display on line 1.
  * @param String line2 The string to display on line 2.
  */
 void GPSBox::displayMessage(String line1, String line2) {
-    
+
     if (isDebugging()) {
         Serial.println("================");
         Serial.println(line1);
@@ -543,4 +620,3 @@ void GPSBox::displayGarbage(unsigned long timeout) {
         delay(500 + random(1000));
     }
 }
-

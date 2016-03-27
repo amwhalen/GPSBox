@@ -35,6 +35,8 @@ class GPSBox {
         float setTargetLongitude(float);
         uint16_t setTargetDistance(uint16_t);
         void debug();
+        void reset();
+        float milesAway(float lat, float lon, float targetLat, float targetLon);
 
     private:
         Servo _servo;
@@ -60,7 +62,8 @@ class GPSBox {
         bool _debug;
         void displayMessage(String, String);
         void displayGarbage(unsigned long);
-        bool waitForGPSSignal(unsigned long);
+        bool waitForGPSData(unsigned long);
+        bool feedGPS();
         void servoLock();
         void servoUnlock();
         bool isSolved();
@@ -71,7 +74,6 @@ class GPSBox {
         uint8_t setAttemptsRemaining(uint8_t);
         void win();
         void backdoor();
-        void reset();
         void powerOff();
         bool isDebugging();
 };
